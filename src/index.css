@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Accessibility-focused base styles */
+@layer base {
+  html {
+    font-size: 18px; /* Larger base font size */
+  }
+  
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6; /* Improved line height for readability */
+    color: #1f2937; /* High contrast text */
+  }
+  
+  /* Focus styles for keyboard navigation */
+  *:focus {
+    outline: 3px solid #3b82f6;
+    outline-offset: 2px;
+  }
+  
+  /* Skip to main content link */
+  .skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: #000;
+    color: #fff;
+    padding: 8px;
+    text-decoration: none;
+    z-index: 1000;
+  }
+  
+  .skip-link:focus {
+    top: 6px;
+  }
+}
+
+@layer components {
+  /* High contrast button styles */
+  .btn-primary {
+    @apply bg-blue-700 hover:bg-blue-800 text-white font-semibold py-4 px-6 rounded-lg text-lg min-h-[56px] transition-all duration-200 border-2 border-blue-700 hover:border-blue-800;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold py-4 px-6 rounded-lg text-lg min-h-[56px] transition-all duration-200 border-2 border-gray-300 hover:border-gray-400;
+  }
+  
+  .btn-danger {
+    @apply bg-red-700 hover:bg-red-800 text-white font-semibold py-4 px-6 rounded-lg text-lg min-h-[56px] transition-all duration-200 border-2 border-red-700 hover:border-red-800;
+  }
+  
+  .btn-success {
+    @apply bg-green-700 hover:bg-green-800 text-white font-semibold py-4 px-6 rounded-lg text-lg min-h-[56px] transition-all duration-200 border-2 border-green-700 hover:border-green-800;
+  }
+  
+  /* Form input styles */
+  .form-input {
+    @apply w-full px-4 py-4 text-lg border-2 border-gray-400 rounded-lg focus:ring-4 focus:ring-blue-300 focus:border-blue-600 bg-white min-h-[56px];
+  }
+  
+  .form-label {
+    @apply block text-lg font-semibold text-gray-900 mb-2;
+  }
+  
+  /* Card styles with better contrast */
+  .card {
+    @apply bg-white rounded-xl shadow-lg border-2 border-gray-200 p-6;
+  }
+  
+  /* Navigation styles */
+  .nav-item {
+    @apply flex items-center space-x-3 px-6 py-4 rounded-lg transition-all duration-200 text-lg font-semibold min-h-[56px];
+  }
+  
+  .nav-item-active {
+    @apply bg-blue-700 text-white border-2 border-blue-700;
+  }
+  
+  .nav-item-inactive {
+    @apply text-gray-700 hover:bg-gray-100 border-2 border-transparent hover:border-gray-300;
+  }
+  
+  /* Status indicators with better contrast */
+  .status-paid {
+    @apply bg-green-100 text-green-900 border-2 border-green-300;
+  }
+  
+  .status-pending {
+    @apply bg-yellow-100 text-yellow-900 border-2 border-yellow-300;
+  }
+  
+  .status-overdue {
+    @apply bg-red-100 text-red-900 border-2 border-red-300;
+  }
+  
+  /* Loading and error states */
+  .loading-spinner {
+    @apply animate-spin rounded-full h-8 w-8 border-4 border-blue-200 border-t-blue-700;
+  }
+  
+  .error-message {
+    @apply bg-red-50 border-2 border-red-300 text-red-900 px-4 py-3 rounded-lg text-lg;
+  }
+  
+  .success-message {
+    @apply bg-green-50 border-2 border-green-300 text-green-900 px-4 py-3 rounded-lg text-lg;
+  }
+}
