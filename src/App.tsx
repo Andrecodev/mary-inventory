@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { AppProvider, useApp } from './context/AppContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -10,9 +10,11 @@ import Suppliers from './components/Suppliers';
 import Accounts from './components/Accounts';
 import Settings from './components/Settings';
 import VoiceAssistant from './components/VoiceAssistant';
+import { Mic } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { state } = useApp();
+  const [showVoiceAssistant, setShowVoiceAssistant] = useState(false);
 
   const renderCurrentView = () => {
     switch (state.currentView) {
@@ -49,7 +51,27 @@ const AppContent: React.FC = () => {
       <div className="pb-24">
         {renderCurrentView()}
       </div>
-      <VoiceAssistant />
+      
+      {/* Voice Assistant Toggle Button */}
+      <button
+        onClick={() => setShowVoiceAssistant(!showVoiceAssistant)}
+        className={`fixed bottom-6 right-6 p-4 rounded-full shadow-2xl transition-all duration-300 z-40 ${
+          showVoiceAssistant 
+            ? 'bg-red-600 hover:bg-red-700' 
+            : 'bg-blue-600 hover:bg-blue-700'
+        }`}
+        aria-label={showVoiceAssistant ? 'Ocultar asistente de voz' : 'Mostrar asistente de voz'}
+        title={showVoiceAssistant ? 'Ocultar asistente de voz' : 'Mostrar asistente de voz'}
+      >
+        <Mic className="h-6 w-6 text-white" />
+      </button>
+
+      {/* Voice Assistant - Only show when toggled */}
+      {showVoiceAssistant && (
+        <div className="fixed bottom-24 right-6 z-40">
+          <VoiceAssistant />
+        </div>
+      )}
       
       {/* Loading overlay */}
       {state.isLoading && (

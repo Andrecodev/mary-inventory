@@ -184,31 +184,87 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const { user } = useAuth();
+  const hasLoadedData = React.useRef(false);
+  const currentUserId = React.useRef<string | null>(null);
+  const isLoadingData = React.useRef(false);
 
   const loadData = async () => {
-    if (!user) return;
+    if (!user) {
+      dispatch({ type: 'SET_LOADING', payload: false });
+      return;
+    }
+
+    // Prevent multiple simultaneous loads
+    if (isLoadingData.current) {
+      console.log('⏸️ Load already in progress, skipping...');
+      return;
+    }
 
     try {
+      isLoadingData.current = true;
       dispatch({ type: 'SET_LOADING', payload: true });
 
-      // Load all data in parallel
+      // Use fetch directly since supabase client has issues with queries
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      // Get token from localStorage (where supabase stores it)
+      const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
+      const storedSession = localStorage.getItem(storageKey);
+      let token = supabaseKey;
+      if (storedSession) {
+        try {
+          const parsed = JSON.parse(storedSession);
+          token = parsed.access_token || supabaseKey;
+        } catch (e) {
+          // Use anon key as fallback
+        }
+      }
+      
+      const headers = {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      const fetchTable = async (table: string) => {
+        const response = await fetch(
+          `${supabaseUrl}/rest/v1/${table}?user_id=eq.${user.id}&select=*`,
+          { headers }
+        );
+        if (!response.ok) {
+          console.error(`Error fetching ${table}:`, response.status, response.statusText);
+          return [];
+        }
+        return response.json();
+      };
+
       const [
-        productsRes,
-        customersRes,
-        suppliersRes,
-        transactionsRes,
-        paymentRecordsRes,
-        purchaseHistoryRes,
-        orderHistoryRes
+        productsData,
+        customersData,
+        suppliersData,
+        transactionsData,
+        paymentRecordsData,
+        purchaseHistoryData,
+        orderHistoryData
       ] = await Promise.all([
-        supabase.from('products').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('customers').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('suppliers').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('account_transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('payment_records').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('purchase_history').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('order_history').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+        fetchTable('products'),
+        fetchTable('customers'),
+        fetchTable('suppliers'),
+        fetchTable('account_transactions'),
+        fetchTable('payment_records'),
+        fetchTable('purchase_history'),
+        fetchTable('order_history')
       ]);
+
+      // Create response-like objects for compatibility with rest of code
+      const productsRes = { data: productsData, error: null };
+      const customersRes = { data: customersData, error: null };
+      const suppliersRes = { data: suppliersData, error: null };
+      const transactionsRes = { data: transactionsData, error: null };
+      const paymentRecordsRes = { data: paymentRecordsData, error: null };
+      const purchaseHistoryRes = { data: purchaseHistoryData, error: null };
+      const orderHistoryRes = { data: orderHistoryData, error: null };
 
       // Map database records to app types
       if (productsRes.data) {
@@ -346,15 +402,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
+      isLoadingData.current = false;
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
 
   useEffect(() => {
-    if (user) {
+    // Only load data when user changes (not just the user object reference)
+    if (user && (!hasLoadedData.current || currentUserId.current !== user.id)) {
+      currentUserId.current = user.id;
+      hasLoadedData.current = true;
       loadData();
+    } else if (!user) {
+      // Reset when user logs out
+      hasLoadedData.current = false;
+      currentUserId.current = null;
     }
-  }, [user]);
+  }, [user?.id]);
 
   const value = {
     state,

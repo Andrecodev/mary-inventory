@@ -15,28 +15,28 @@ const Dashboard: React.FC = () => {
   const quickActions = [
     {
       icon: Plus,
-      label: 'Add New Product',
+      label: t('addNewProduct', state.language),
       description: 'Add a new product to your inventory',
       action: () => dispatch({ type: 'SET_VIEW', payload: 'inventory' }),
       color: 'btn-primary',
     },
     {
       icon: Users,
-      label: 'Add New Customer',
+      label: t('addNewCustomer', state.language),
       description: 'Register a new customer in the system',
       action: () => dispatch({ type: 'SET_VIEW', payload: 'customers' }),
       color: 'btn-success',
     },
     {
       icon: Truck,
-      label: 'Add New Supplier',
+      label: t('addNewSupplier', state.language),
       description: 'Add a new supplier to your network',
       action: () => dispatch({ type: 'SET_VIEW', payload: 'suppliers' }),
       color: 'btn-secondary',
     },
     {
       icon: BarChart3,
-      label: 'View Reports',
+      label: t('viewReports', state.language),
       description: 'Access detailed business reports and analytics',
       action: () => dispatch({ type: 'SET_VIEW', payload: 'reports' }),
       color: 'btn-secondary',
@@ -44,13 +44,13 @@ const Dashboard: React.FC = () => {
   ];
 
   return (
-    <main id="main-content" className="p-8 max-w-7xl mx-auto" role="main">
+    <main id="main-content" className="p-4 md:p-8 max-w-7xl mx-auto" role="main">
       {/* Header */}
-      <div className="mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          Welcome to Your Business Dashboard
+      <div className="mb-8 md:mb-12">
+        <h1 className="text-2xl md:text-4xl font-bold text-gray-900 mb-2 md:mb-4">
+          {t('welcomeToDashboard', state.language)}
         </h1>
-        <p className="text-xl text-gray-700 mb-4">
+        <p className="text-base md:text-xl text-gray-700 mb-2 md:mb-4">
           {new Date().toLocaleDateString(state.language === 'en' ? 'en-US' : 'es-ES', {
             weekday: 'long',
             year: 'numeric',
@@ -58,46 +58,46 @@ const Dashboard: React.FC = () => {
             day: 'numeric',
           })}
         </p>
-        <p className="text-lg text-gray-600">
-          Here's an overview of your business performance and important notifications.
+        <p className="text-sm md:text-lg text-gray-600">
+          {t('businessOverview', state.language)}
         </p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 mb-8 md:mb-12">
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-lg font-semibold text-gray-700 mb-2">Total Products</p>
-              <p className="text-4xl font-bold text-gray-900">{state.products.length}</p>
+              <p className="text-sm md:text-lg font-semibold text-gray-700 mb-2">{t('totalProducts', state.language)}</p>
+              <p className="text-2xl md:text-4xl font-bold text-gray-900">{state.products.length}</p>
             </div>
-            <div className="p-4 bg-blue-100 rounded-full">
-              <Package className="h-8 w-8 text-blue-700" aria-hidden="true" />
+            <div className="p-2 md:p-4 bg-blue-100 rounded-full">
+              <Package className="h-6 w-6 md:h-8 md:w-8 text-blue-700" aria-hidden="true" />
             </div>
           </div>
           <button
             onClick={() => dispatch({ type: 'SET_VIEW', payload: 'inventory' })}
-            className="text-blue-700 hover:text-blue-800 font-semibold text-lg"
+            className="text-blue-700 hover:text-blue-800 font-semibold text-sm md:text-lg"
             aria-label="View all products in inventory"
           >
-            View Inventory →
+            {t('viewInventory', state.language)} →
           </button>
         </div>
 
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-lg font-semibold text-gray-700 mb-2">Low Stock Items</p>
-              <p className="text-4xl font-bold text-red-700">{lowStockProducts.length}</p>
+              <p className="text-sm md:text-lg font-semibold text-gray-700 mb-2">{t('lowStock', state.language)}</p>
+              <p className="text-2xl md:text-4xl font-bold text-red-700">{lowStockProducts.length}</p>
             </div>
-            <div className="p-4 bg-red-100 rounded-full">
-              <AlertTriangle className="h-8 w-8 text-red-700" aria-hidden="true" />
+            <div className="p-2 md:p-4 bg-red-100 rounded-full">
+              <AlertTriangle className="h-6 w-6 md:h-8 md:w-8 text-red-700" aria-hidden="true" />
             </div>
           </div>
           {lowStockProducts.length > 0 && (
             <div className="flex items-center space-x-2 text-red-700">
-              <Bell className="h-5 w-5" aria-hidden="true" />
-              <span className="font-semibold text-lg">Needs Attention</span>
+              <Bell className="h-4 w-4 md:h-5 md:w-5" aria-hidden="true" />
+              <span className="font-semibold text-sm md:text-lg">{t('needsAttention', state.language)}</span>
             </div>
           )}
         </div>
