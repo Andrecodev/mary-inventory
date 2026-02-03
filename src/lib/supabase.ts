@@ -36,8 +36,9 @@ export type Database = {
           id: string;
           user_id: string;
           name: string;
-          image: string;
+          image: string | null;
           price: number;
+          purchase_price: number;
           quantity: number;
           category: string;
           low_stock_threshold: number;

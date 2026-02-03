@@ -19,31 +19,35 @@ const Navigation: React.FC = () => {
   };
 
   const navItems = [
-    { id: 'dashboard', icon: Home, label: t('dashboard', state.language), description: 'View business overview and statistics' },
-    { id: 'inventory', icon: Package, label: t('inventory', state.language), description: 'Manage products and stock levels' },
-    { id: 'customers', icon: Users, label: t('customers', state.language), description: 'Manage customer information and accounts' },
-    { id: 'suppliers', icon: Truck, label: t('suppliers', state.language), description: 'Manage supplier relationships' },
-    { id: 'accounts', icon: CreditCard, label: t('accounts', state.language), description: 'Track money owed and payments' },
-    { id: 'settings', icon: Settings, label: t('settings', state.language), description: 'Configure system preferences' },
+    { id: 'dashboard', icon: Home, label: t('dashboard', state.language), description: 'Ver resumen y estadísticas del negocio' },
+    { id: 'inventory', icon: Package, label: t('inventory', state.language), description: 'Gestionar productos y niveles de stock' },
+    { id: 'customers', icon: Users, label: t('customers', state.language), description: 'Gestionar información y cuentas de clientes' },
+    { id: 'suppliers', icon: Truck, label: t('suppliers', state.language), description: 'Gestionar relaciones con proveedores' },
+    { id: 'accounts', icon: CreditCard, label: t('accounts', state.language), description: 'Rastrear dinero adeudado y pagos' },
+    // { id: 'settings', icon: Settings, label: t('settings', state.language), description: 'Configurar preferencias del sistema' },
   ];
 
   return (
     <>
       {/* Skip to main content link for screen readers */}
       <a href="#main-content" className="skip-link">
-        Skip to main content
+        Ir al contenido principal
       </a>
       
       <nav className="bg-white border-b-4 border-gray-300 px-4 md:px-6 py-4" role="navigation" aria-label="Main navigation">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4 md:space-x-12">
-            <div className="flex items-center space-x-2 md:space-x-3">
+            <button 
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'dashboard' })}
+              className="flex items-center space-x-2 md:space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
+              aria-label="Ir a página de inicio"
+            >
               <Package className="h-8 md:h-12 w-8 md:w-12 text-blue-700" aria-hidden="true" />
               <div>
                 <h1 className="text-lg md:text-2xl font-bold text-gray-900">InvenFlow</h1>
-                <p className="text-xs md:text-sm text-gray-600 hidden sm:block">Business Management System</p>
+                <p className="text-xs md:text-sm text-gray-600 hidden sm:block">Gestiona tu negocio</p>
               </div>
-            </div>
+            </button>
             
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center space-x-2">
@@ -80,13 +84,13 @@ const Navigation: React.FC = () => {
             </button>
 
             {/* Language Toggle */}
-            <button
+            {/* <button
               onClick={() => dispatch({ type: 'SET_LANGUAGE', payload: state.language === 'en' ? 'es' : 'en' })}
               className="hidden md:flex btn-secondary items-center space-x-2"
               aria-label={`Cambiar a ${state.language === 'en' ? 'Español' : 'Inglés'}`}
             >
               <span>{state.language === 'en' ? 'Español' : 'English'}</span>
-            </button>
+            </button> */}
 
             {/* User Menu */}
             <div className="relative">
@@ -116,7 +120,7 @@ const Navigation: React.FC = () => {
                     <p className="text-xs text-gray-600 mt-1">{user?.email}</p>
                   </div>
 
-                  <button
+                  {/* <button
                     onClick={() => {
                       setShowUserMenu(false);
                       dispatch({ type: 'SET_VIEW', payload: 'settings' });
@@ -127,7 +131,7 @@ const Navigation: React.FC = () => {
                     <span className="text-sm font-medium text-gray-700">Configuración</span>
                   </button>
 
-                  <div className="border-t border-gray-200 mt-2 pt-2">
+                  <div className="border-t border-gray-200 mt-2 pt-2"> */}
                     <button
                       onClick={() => {
                         setShowUserMenu(false);
@@ -138,7 +142,7 @@ const Navigation: React.FC = () => {
                       <LogOut className="h-5 w-5" />
                       <span className="text-sm font-medium">Cerrar Sesión</span>
                     </button>
-                  </div>
+                  {/* </div> */}
                 </div>
               )}
             </div>
@@ -189,7 +193,7 @@ const Navigation: React.FC = () => {
               </div>
 
               <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-                <button
+                {/* <button
                   onClick={() => {
                     dispatch({ type: 'SET_LANGUAGE', payload: state.language === 'en' ? 'es' : 'en' });
                     setShowMobileMenu(false);
@@ -197,7 +201,7 @@ const Navigation: React.FC = () => {
                   className="w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
                 >
                   {state.language === 'en' ? '🇪🇸 Español' : '🇬🇧 English'}
-                </button>
+                </button> */}
               </div>
             </div>
           </>

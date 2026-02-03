@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
-import { Search, Plus, Edit, Trash2, DollarSign, Calendar, Clock, CheckCircle, AlertTriangle, Eye, Filter, CreditCard, FileText, User, Building } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, DollarSign, Clock, CheckCircle, AlertTriangle, Eye, Filter, CreditCard, FileText, User, Building } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../hooks';
+import { createAccountTransaction, updateAccountTransaction, deleteAccountTransaction, createPaymentRecord, createPurchaseHistory, createOrderHistory } from '../lib/database';
 import { t } from '../utils/translations';
-import { AccountTransaction, PaymentRecord } from '../types';
+import { AccountTransaction, PaymentRecord, PurchaseHistory, OrderHistory } from '../types';
+import DateInput from './DateInput';
 
 const Accounts: React.FC = () => {
-  const { state, dispatch } = useApp();
+  const { state, loadData } = useApp();
+  const { user } = useAuth();
+  const { success, error } = useToast();
   const [activeTab, setActiveTab] = useState<'receivable' | 'payable'>('receivable');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<AccountTransaction | null>(null);
@@ -13,6 +19,7 @@ const Accounts: React.FC = () => {
   const [showPaymentForm, setShowPaymentForm] = useState<AccountTransaction | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isLoading, setIsLoading] = useState(false);
 
   const filteredTransactions = state.accountTransactions.filter(transaction => {
     const matchesType = transaction.type === activeTab;
@@ -50,64 +57,167 @@ const Accounts: React.FC = () => {
     }
   };
 
-  const handleAddTransaction = (transactionData: Omit<AccountTransaction, 'id' | 'createdDate' | 'remainingAmount'>) => {
-    const newTransaction: AccountTransaction = {
-      ...transactionData,
-      id: Date.now().toString(),
-      createdDate: new Date(),
-      remainingAmount: transactionData.totalAmount - transactionData.paidAmount,
-    };
-    dispatch({ type: 'ADD_ACCOUNT_TRANSACTION', payload: newTransaction });
-    setShowAddForm(false);
-  };
+  const handleAddTransaction = async (transactionData: Omit<AccountTransaction, 'id' | 'createdDate' | 'remainingAmount'>) => {
+    // Validate that at least one product is selected
+    if (!transactionData.products || transactionData.products.length === 0) {
+      error('Debes agregar al menos un producto a la transacción');
+      return;
+    }
 
-  const handleUpdateTransaction = (transactionData: Omit<AccountTransaction, 'id' | 'createdDate'>) => {
-    if (editingTransaction) {
-      const updatedTransaction: AccountTransaction = {
+    // Validate that all products have a valid productId
+    const invalidProducts = transactionData.products.filter(p => !p.productId || p.productId === '');
+    if (invalidProducts.length > 0) {
+      error('Debes seleccionar un producto válido para cada línea');
+      return;
+    }
+
+    // Validate that total amount is greater than 0
+    if (transactionData.totalAmount <= 0) {
+      error('El monto total debe ser mayor a 0');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const newTransaction: AccountTransaction = {
         ...transactionData,
-        id: editingTransaction.id,
-        createdDate: editingTransaction.createdDate,
+        id: Date.now().toString(),
+        createdDate: new Date(),
+        remainingAmount: transactionData.totalAmount - transactionData.paidAmount,
       };
-      dispatch({ type: 'UPDATE_ACCOUNT_TRANSACTION', payload: updatedTransaction });
-      setEditingTransaction(null);
+      await createAccountTransaction(newTransaction, user?.id || '');
+
+      // Automatically create purchase history for receivables (customer purchases)
+      if (transactionData.type === 'receivable' && transactionData.customerId) {
+        // Map products to PurchaseHistory format: { productId, quantity, price }
+        const mappedProducts = transactionData.products.map(p => ({
+          productId: p.productId,
+          quantity: p.quantity,
+          price: p.unitPrice
+        }));
+
+        const purchaseHistory: Omit<PurchaseHistory, 'id'> = {
+          customerId: transactionData.customerId,
+          products: mappedProducts,
+          total: transactionData.totalAmount,
+          date: newTransaction.createdDate,
+          notes: transactionData.notes
+        };
+        await createPurchaseHistory(purchaseHistory, user?.id || '');
+        console.log('✅ Purchase history created for customer transaction');
+      }
+
+      // Automatically create order history for payables (supplier orders)
+      if (transactionData.type === 'payable' && transactionData.supplierId) {
+        // Map products to OrderHistory format: { productId, quantity, cost }
+        const mappedProducts = transactionData.products.map(p => ({
+          productId: p.productId,
+          quantity: p.quantity,
+          cost: p.unitPrice
+        }));
+
+        const orderHistory: Omit<OrderHistory, 'id'> = {
+          supplierId: transactionData.supplierId,
+          products: mappedProducts,
+          total: transactionData.totalAmount,
+          orderDate: newTransaction.createdDate,
+          expectedDelivery: transactionData.dueDate,
+          status: 'pending',
+          notes: transactionData.notes
+        };
+        await createOrderHistory(orderHistory, user?.id || '');
+        console.log('✅ Order history created for supplier transaction');
+      }
+
+      const type = transactionData.type === 'receivable' ? 'por cobrar' : 'por pagar';
+      success(`Transacción ${type} agregada exitosamente`);
+      await loadData();
+      setShowAddForm(false);
+    } catch (err) {
+      console.error('Error adding transaction:', err);
+      error('Error al agregar la transacción. Por favor intenta de nuevo.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDeleteTransaction = (id: string) => {
+  const handleUpdateTransaction = async (transactionData: Omit<AccountTransaction, 'id' | 'createdDate'>) => {
+    if (editingTransaction) {
+      try {
+        setIsLoading(true);
+        const updatedTransaction: AccountTransaction = {
+          ...transactionData,
+          id: editingTransaction.id,
+          createdDate: editingTransaction.createdDate,
+        };
+        await updateAccountTransaction(updatedTransaction);
+        success('Transacción actualizada exitosamente');
+        await loadData();
+        setEditingTransaction(null);
+      } catch (err) {
+        console.error('Error updating transaction:', err);
+        error('Error al actualizar la transacción. Por favor intenta de nuevo.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar esta transacción?')) {
-      dispatch({ type: 'DELETE_ACCOUNT_TRANSACTION', payload: id });
+      try {
+        setIsLoading(true);
+        await deleteAccountTransaction(id);
+        success('Transacción eliminada exitosamente');
+        await loadData();
+      } catch (err) {
+        console.error('Error deleting transaction:', err);
+        error('Error al eliminar la transacción. Por favor intenta de nuevo.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-  const handleAddPayment = (transactionId: string, paymentData: Omit<PaymentRecord, 'id' | 'transactionId'>) => {
-    const newPayment: PaymentRecord = {
-      ...paymentData,
-      id: Date.now().toString(),
-      transactionId,
-    };
-    
-    // Update transaction
-    const transaction = state.accountTransactions.find(t => t.id === transactionId);
-    if (transaction) {
-      const newPaidAmount = transaction.paidAmount + paymentData.amount;
-      const newRemainingAmount = transaction.totalAmount - newPaidAmount;
-      const newStatus = newRemainingAmount <= 0 ? 'paid' : 
-                       newPaidAmount > 0 ? 'partial' : 
-                       new Date() > transaction.dueDate ? 'overdue' : 'pending';
-
-      const updatedTransaction: AccountTransaction = {
-        ...transaction,
-        paidAmount: newPaidAmount,
-        remainingAmount: newRemainingAmount,
-        status: newStatus,
-        lastPaymentDate: paymentData.paymentDate,
+  const handleAddPayment = async (transactionId: string, paymentData: Omit<PaymentRecord, 'id' | 'transactionId'>) => {
+    try {
+      setIsLoading(true);
+      const newPayment: PaymentRecord = {
+        ...paymentData,
+        id: Date.now().toString(),
+        transactionId,
       };
 
-      dispatch({ type: 'ADD_PAYMENT_RECORD', payload: newPayment });
-      dispatch({ type: 'UPDATE_ACCOUNT_TRANSACTION', payload: updatedTransaction });
+      // Update transaction
+      const transaction = state.accountTransactions.find(t => t.id === transactionId);
+      if (transaction) {
+        const newPaidAmount = transaction.paidAmount + paymentData.amount;
+        const newRemainingAmount = transaction.totalAmount - newPaidAmount;
+        const newStatus = newRemainingAmount <= 0 ? 'paid' :
+                         newPaidAmount > 0 ? 'partial' :
+                         new Date() > transaction.dueDate ? 'overdue' : 'pending';
+
+        const updatedTransaction: AccountTransaction = {
+          ...transaction,
+          paidAmount: newPaidAmount,
+          remainingAmount: newRemainingAmount,
+          status: newStatus,
+          lastPaymentDate: paymentData.paymentDate,
+        };
+
+        await createPaymentRecord(newPayment, user?.id || '');
+        await updateAccountTransaction(updatedTransaction);
+        success(`Pago de $${paymentData.amount.toLocaleString()} registrado exitosamente`);
+        await loadData();
+      }
+
+      setShowPaymentForm(null);
+    } catch (err) {
+      console.error('Error adding payment:', err);
+      error('Error al registrar el pago. Por favor intenta de nuevo.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setShowPaymentForm(null);
   };
 
   const getStatusColor = (status: string) => {
@@ -131,7 +241,8 @@ const Accounts: React.FC = () => {
     transaction?: AccountTransaction;
     onSubmit: (data: any) => void;
     onCancel: () => void;
-  }> = ({ transaction, onSubmit, onCancel }) => {
+    isSubmitting?: boolean;
+  }> = ({ transaction, onSubmit, onCancel, isSubmitting = false }) => {
     const [formData, setFormData] = useState({
       type: transaction?.type || activeTab,
       customerId: transaction?.customerId || '',
@@ -170,15 +281,17 @@ const Accounts: React.FC = () => {
     const handleProductChange = (index: number, field: string, value: any) => {
       const newProducts = [...selectedProducts];
       newProducts[index] = { ...newProducts[index], [field]: value };
-      
+
       if (field === 'productId') {
         const product = state.products.find(p => p.id === value);
         if (product) {
           newProducts[index].productName = product.name;
           newProducts[index].unitPrice = product.price;
+          // Also calculate totalPrice when product is selected
+          newProducts[index].totalPrice = newProducts[index].quantity * product.price;
         }
       }
-      
+
       if (field === 'quantity' || field === 'unitPrice') {
         newProducts[index].totalPrice = newProducts[index].quantity * newProducts[index].unitPrice;
       }
@@ -189,11 +302,21 @@ const Accounts: React.FC = () => {
 
     const updateTotalAmount = (products: any[]) => {
       const total = products.reduce((sum, p) => sum + p.totalPrice, 0);
-      setFormData({ ...formData, totalAmount: total, products });
+      setFormData(prev => ({ ...prev, totalAmount: total, products }));
     };
+
+    // Check if products are valid (have productId selected)
+    const hasValidProducts = selectedProducts.length > 0 &&
+      selectedProducts.every(p => p.productId && p.productId !== '');
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
+
+      // Validate that products are properly selected
+      if (!hasValidProducts) {
+        return;
+      }
+
       const submitData = {
         ...formData,
         products: selectedProducts,
@@ -236,48 +359,60 @@ const Accounts: React.FC = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Cliente *
                       </label>
-                      <select
-                        value={formData.customerId}
-                        onChange={(e) => {
-                          const customer = state.customers.find(c => c.id === e.target.value);
-                          setFormData({ 
-                            ...formData, 
-                            customerId: e.target.value,
-                            customerName: customer?.name || ''
-                          });
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      >
-                        <option value="">Seleccionar Cliente</option>
-                        {state.customers.map(customer => (
-                          <option key={customer.id} value={customer.id}>{customer.name}</option>
-                        ))}
-                      </select>
+                      {state.customers.length === 0 ? (
+                        <p className="text-sm text-amber-600 py-2">
+                          No hay clientes registrados. Agrega un cliente primero.
+                        </p>
+                      ) : (
+                        <select
+                          value={formData.customerId}
+                          onChange={(e) => {
+                            const customer = state.customers.find(c => c.id === e.target.value);
+                            setFormData({
+                              ...formData,
+                              customerId: e.target.value,
+                              customerName: customer?.name || ''
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        >
+                          <option value="">Seleccionar Cliente</option>
+                          {state.customers.map(customer => (
+                            <option key={customer.id} value={customer.id}>{customer.name}</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                   ) : (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Proveedor *
                       </label>
-                      <select
-                        value={formData.supplierId}
-                        onChange={(e) => {
-                          const supplier = state.suppliers.find(s => s.id === e.target.value);
-                          setFormData({ 
-                            ...formData, 
-                            supplierId: e.target.value,
-                            supplierName: supplier?.name || ''
-                          });
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      >
-                        <option value="">Seleccionar Proveedor</option>
-                        {state.suppliers.map(supplier => (
-                          <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                        ))}
-                      </select>
+                      {state.suppliers.length === 0 ? (
+                        <p className="text-sm text-amber-600 py-2">
+                          No hay proveedores registrados. Agrega un proveedor primero.
+                        </p>
+                      ) : (
+                        <select
+                          value={formData.supplierId}
+                          onChange={(e) => {
+                            const supplier = state.suppliers.find(s => s.id === e.target.value);
+                            setFormData({
+                              ...formData,
+                              supplierId: e.target.value,
+                              supplierName: supplier?.name || ''
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        >
+                          <option value="">Seleccionar Proveedor</option>
+                          {state.suppliers.map(supplier => (
+                            <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                   )}
 
@@ -294,57 +429,37 @@ const Accounts: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Fecha de Vencimiento *
-                    </label>
-                    <input
-                      type="date"
+                    <DateInput
+                      label="Fecha de Vencimiento"
                       value={formData.dueDate}
-                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      onChange={(value:any) => setFormData({ ...formData, dueDate: value })}
                       required
+                      min={new Date().toISOString().split('T')[0]}
+                      placeholder="Seleccionar fecha de vencimiento"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Términos de Pago
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.paymentTerms}
-                      onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="ej: Net 30, 2/10 Net 30"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Referencia
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.reference}
-                      onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
                 </div>
               </div>
 
               {/* Products */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-medium">Productos</h3>
-                  <button
-                    type="button"
-                    onClick={handleAddProduct}
-                    className="flex items-center space-x-2 bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Agregar Producto</span>
-                  </button>
+                  <h3 className="text-lg font-medium">Productos *</h3>
+                  {state.products.length === 0 ? (
+                    <p className="text-sm text-amber-600">
+                      No hay productos registrados
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleAddProduct}
+                      className="flex items-center space-x-2 bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>Agregar Producto</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -465,6 +580,17 @@ const Accounts: React.FC = () => {
                 />
               </div>
 
+              {/* Validation message - show before buttons for visibility */}
+              {!hasValidProducts && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+                  {selectedProducts.length === 0 ? (
+                    <span>* Debes agregar al menos un producto usando el botón "Agregar Producto"</span>
+                  ) : (
+                    <span>* Debes seleccionar un producto del menú desplegable para cada línea</span>
+                  )}
+                </div>
+              )}
+
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -475,9 +601,20 @@ const Accounts: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  disabled={isSubmitting || !hasValidProducts}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
-                  Guardar
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    <span>Guardar</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -542,15 +679,13 @@ const Accounts: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fecha de Pago *
-                </label>
-                <input
-                  type="date"
+                <DateInput
+                  label="Fecha de Pago"
                   value={formData.paymentDate}
-                  onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onChange={(value) => setFormData({ ...formData, paymentDate: value })}
                   required
+                  max={new Date().toISOString().split('T')[0]}
+                  placeholder="Seleccionar fecha de pago"
                 />
               </div>
 
@@ -1038,6 +1173,7 @@ const Accounts: React.FC = () => {
         <TransactionForm
           onSubmit={handleAddTransaction}
           onCancel={() => setShowAddForm(false)}
+          isSubmitting={isLoading}
         />
       )}
 
@@ -1046,6 +1182,7 @@ const Accounts: React.FC = () => {
           transaction={editingTransaction}
           onSubmit={handleUpdateTransaction}
           onCancel={() => setEditingTransaction(null)}
+          isSubmitting={isLoading}
         />
       )}
 

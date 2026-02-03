@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Save, Users, Bell, Database, Settings as SettingsIcon, Globe, Clock, DollarSign, Plus, Edit, Trash2, Shield } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../hooks';
 import { t } from '../utils/translations';
 import { User, SystemSettings } from '../types';
 
 const Settings: React.FC = () => {
   const { state, dispatch } = useApp();
+  const { success, info } = useToast();
   const [activeTab, setActiveTab] = useState('general');
   const [showAddUserForm, setShowAddUserForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -20,8 +22,7 @@ const Settings: React.FC = () => {
 
   const handleSaveSettings = () => {
     dispatch({ type: 'UPDATE_SETTINGS', payload: settings });
-    // Show success message
-    alert('Settings saved successfully!');
+    success('Configuración guardada exitosamente');
   };
 
   const handleAddUser = (userData: Omit<User, 'id' | 'createdAt'>) => {
@@ -31,6 +32,7 @@ const Settings: React.FC = () => {
       createdAt: new Date(),
     };
     dispatch({ type: 'ADD_USER', payload: newUser });
+    success(`Usuario "${userData.name}" agregado exitosamente`);
     setShowAddUserForm(false);
   };
 
@@ -42,13 +44,16 @@ const Settings: React.FC = () => {
         createdAt: editingUser.createdAt,
       };
       dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+      success(`Usuario "${userData.name}" actualizado exitosamente`);
       setEditingUser(null);
     }
   };
 
   const handleDeleteUser = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
+    const user = state.users.find(u => u.id === id);
+    if (window.confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
       dispatch({ type: 'DELETE_USER', payload: id });
+      info(user ? `Usuario "${user.name}" eliminado` : 'Usuario eliminado');
     }
   };
 

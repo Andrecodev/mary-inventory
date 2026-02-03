@@ -9,12 +9,18 @@ import Customers from './components/Customers';
 import Suppliers from './components/Suppliers';
 import Accounts from './components/Accounts';
 import Settings from './components/Settings';
+import Reports from './components/Reports';
 import VoiceAssistant from './components/VoiceAssistant';
-import { Mic } from 'lucide-react';
+import FeedbackModal from './components/FeedbackModal';
+import { ToastContainer } from './components/Toast';
+import { useToast } from './hooks';
+import { Mic, Lightbulb } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { state } = useApp();
   const [showVoiceAssistant, setShowVoiceAssistant] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const { toasts, removeToast } = useToast();
 
   const renderCurrentView = () => {
     switch (state.currentView) {
@@ -31,15 +37,7 @@ const AppContent: React.FC = () => {
       case 'settings':
         return <Settings />;
       case 'reports':
-        return <div className="p-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Reports & Analytics</h1>
-          <div className="card">
-            <p className="text-xl text-gray-600 mb-6">Advanced reporting features are coming soon!</p>
-            <p className="text-lg text-gray-600">
-              This section will include detailed business analytics, financial reports, and performance metrics.
-            </p>
-          </div>
-        </div>;
+        return <Reports />;
       default:
         return <Dashboard />;
     }
@@ -47,6 +45,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50" lang={state.language}>
+      <ToastContainer toasts={toasts} onClose={removeToast} />
       <Navigation />
       <div className="pb-24">
         {renderCurrentView()}
@@ -66,12 +65,25 @@ const AppContent: React.FC = () => {
         <Mic className="h-6 w-6 text-white" />
       </button>
 
+      {/* Feedback Button */}
+      <button
+        onClick={() => setShowFeedbackModal(true)}
+        className="fixed bottom-24 right-6 p-4 rounded-full bg-green-600 hover:bg-green-700 shadow-2xl transition-all duration-300 z-40"
+        aria-label="Enviar feedback"
+        title="Comparte tu feedback"
+      >
+        <Lightbulb className="h-6 w-6 text-white" />
+      </button>
+
       {/* Voice Assistant - Only show when toggled */}
       {showVoiceAssistant && (
         <div className="fixed bottom-24 right-6 z-40">
           <VoiceAssistant />
         </div>
       )}
+
+      {/* Feedback Modal */}
+      <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
       
       {/* Loading overlay */}
       {state.isLoading && (

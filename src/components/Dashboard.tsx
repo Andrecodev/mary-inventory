@@ -7,37 +7,37 @@ const Dashboard: React.FC = () => {
   const { state, dispatch } = useApp();
 
   const lowStockProducts = state.products.filter(p => p.quantity <= p.lowStockThreshold);
-  const overduePayments = state.payments.filter(p => p.status === 'overdue');
-  const totalRevenue = state.payments
-    .filter(p => p.status === 'paid' && p.customerId)
-    .reduce((sum, p) => sum + p.amount, 0);
+  const overduePayments = state.accountTransactions.filter(t => t.status === 'overdue');
+  const totalRevenue = state.accountTransactions
+    .filter(t => t.status === 'paid' && t.type === 'receivable')
+    .reduce((sum, t) => sum + t.totalAmount, 0);
 
   const quickActions = [
     {
       icon: Plus,
       label: t('addNewProduct', state.language),
-      description: 'Add a new product to your inventory',
+      description: 'Agregar un nuevo producto a tu inventario',
       action: () => dispatch({ type: 'SET_VIEW', payload: 'inventory' }),
       color: 'btn-primary',
     },
     {
       icon: Users,
       label: t('addNewCustomer', state.language),
-      description: 'Register a new customer in the system',
+      description: 'Registrar un nuevo cliente en el sistema',
       action: () => dispatch({ type: 'SET_VIEW', payload: 'customers' }),
       color: 'btn-success',
     },
     {
       icon: Truck,
       label: t('addNewSupplier', state.language),
-      description: 'Add a new supplier to your network',
+      description: 'Agregar un nuevo proveedor a tu red',
       action: () => dispatch({ type: 'SET_VIEW', payload: 'suppliers' }),
       color: 'btn-secondary',
     },
     {
       icon: BarChart3,
       label: t('viewReports', state.language),
-      description: 'Access detailed business reports and analytics',
+      description: 'Acceder a reportes detallados y analíticas del negocio',
       action: () => dispatch({ type: 'SET_VIEW', payload: 'reports' }),
       color: 'btn-secondary',
     },
@@ -78,7 +78,7 @@ const Dashboard: React.FC = () => {
           <button
             onClick={() => dispatch({ type: 'SET_VIEW', payload: 'inventory' })}
             className="text-blue-700 hover:text-blue-800 font-semibold text-sm md:text-lg"
-            aria-label="View all products in inventory"
+            aria-label="Ver todos los productos en el inventario"
           >
             {t('viewInventory', state.language)} →
           </button>
@@ -105,42 +105,42 @@ const Dashboard: React.FC = () => {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-lg font-semibold text-gray-700 mb-2">Overdue Payments</p>
-              <p className="text-4xl font-bold text-amber-700">{overduePayments.length}</p>
+              <p className="text-sm font-semibold text-gray-700 mb-2">Pagos Vencidos</p>
+              <p className="text-2xl font-bold text-amber-700">{overduePayments.length}</p>
             </div>
-            <div className="p-4 bg-amber-100 rounded-full">
-              <Clock className="h-8 w-8 text-amber-700" aria-hidden="true" />
+            <div className="p-2 bg-amber-100 rounded-full">
+              <Clock className="h-6 w-6 text-amber-700" aria-hidden="true" />
             </div>
           </div>
           <button
             onClick={() => dispatch({ type: 'SET_VIEW', payload: 'accounts' })}
-            className="text-amber-700 hover:text-amber-800 font-semibold text-lg"
-            aria-label="View overdue payments"
+            className="text-amber-700 hover:text-amber-800 font-semibold text-sm md:text-lg"
+            aria-label="Ver pagos vencidos"
           >
-            Review Payments →
+            Revisar pagos →
           </button>
         </div>
 
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-lg font-semibold text-gray-700 mb-2">Total Revenue</p>
-              <p className="text-4xl font-bold text-green-700">${totalRevenue.toLocaleString()}</p>
+              <p className="text-sm font-semibold text-gray-700 mb-2">Ingresos Totales</p>
+              <p className="text-2xl font-bold text-green-700">${totalRevenue.toLocaleString()}</p>
             </div>
             <div className="p-4 bg-green-100 rounded-full">
               <TrendingUp className="h-8 w-8 text-green-700" aria-hidden="true" />
             </div>
           </div>
           <div className="flex items-center space-x-2 text-green-700">
-            <span className="font-semibold text-lg">This Month</span>
+            <span className="font-semibold text-sm md:text-lg">Este Mes</span>
           </div>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div className="mb-12">
-        <h2 className="text-3xl font-bold text-gray-900 mb-6">Quick Actions</h2>
-        <p className="text-lg text-gray-600 mb-8">Perform common tasks with one click</p>
+        <h2 className="text-3xl font-bold text-gray-900 mb-6">Acciones Rápidas</h2>
+        {/* <p className="text-lg text-gray-600 mb-8">Realiza tareas comunes con un clic</p> */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {quickActions.map((action, index) => (
             <button
@@ -164,9 +164,9 @@ const Dashboard: React.FC = () => {
           <div className="card">
             <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
               <AlertTriangle className="h-7 w-7 text-red-700 mr-3" aria-hidden="true" />
-              Low Stock Alert
+              Alerta de Bajo Stock
             </h3>
-            <p className="text-lg text-gray-600 mb-6">These products need to be restocked soon:</p>
+            <p className="text-lg text-gray-600 mb-6">Estos productos necesitan ser reabastecidos pronto:</p>
             <div className="space-y-4">
               {lowStockProducts.slice(0, 5).map((product) => (
                 <div key={product.id} className="flex items-center justify-between p-4 bg-red-50 rounded-lg border-2 border-red-200">
@@ -176,15 +176,15 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900 text-lg">{product.name}</p>
-                      <p className="text-red-700 font-semibold">Only {product.quantity} left in stock</p>
+                      <p className="text-red-700 font-semibold">Solo {product.quantity} en stock</p>
                     </div>
                   </div>
                   <button
                     onClick={() => dispatch({ type: 'SET_VIEW', payload: 'inventory' })}
                     className="btn-primary"
-                    aria-label={`Restock ${product.name}`}
+                    aria-label={`Reabastecer ${product.name}`}
                   >
-                    Restock
+                    Reabastecer
                   </button>
                 </div>
               ))}
@@ -197,27 +197,31 @@ const Dashboard: React.FC = () => {
           <div className="card">
             <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
               <Clock className="h-7 w-7 text-amber-700 mr-3" aria-hidden="true" />
-              Overdue Payments
+              {t('overduePayments', state.language)}
             </h3>
-            <p className="text-lg text-gray-600 mb-6">These payments require immediate attention:</p>
+            <p className="text-lg text-gray-600 mb-6">Estos pagos requieren atención inmediata:</p>
             <div className="space-y-4">
-              {overduePayments.slice(0, 5).map((payment) => (
-                <div key={payment.id} className="flex items-center justify-between p-4 bg-amber-50 rounded-lg border-2 border-amber-200">
+              {overduePayments.slice(0, 5).map((transaction) => (
+                <div key={transaction.id} className="flex items-center justify-between p-4 bg-amber-50 rounded-lg border-2 border-amber-200">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
                       <DollarSign className="h-6 w-6 text-amber-700" aria-hidden="true" />
                     </div>
                     <div>
-                      <p className="font-bold text-gray-900 text-lg">${payment.amount.toLocaleString()}</p>
-                      <p className="text-amber-700 font-semibold">{payment.description}</p>
+                      <p className="font-bold text-gray-900 text-lg">${transaction.remainingAmount.toLocaleString()}</p>
+                      <p className="text-amber-700 font-semibold">
+                        {transaction.type === 'receivable' 
+                          ? transaction.customerName || 'Cliente' 
+                          : transaction.supplierName || 'Proveedor'}
+                      </p>
                     </div>
                   </div>
                   <button
-                    onClick={() => dispatch({ type: 'SET_VIEW', payload: 'customers' })}
+                    onClick={() => dispatch({ type: 'SET_VIEW', payload: 'accounts' })}
                     className="btn-primary"
-                    aria-label={`Follow up on payment of $${payment.amount}`}
+                    aria-label={`Seguimiento de pago de $${transaction.remainingAmount}`}
                   >
-                    Follow Up
+                    Ver Detalles
                   </button>
                 </div>
               ))}

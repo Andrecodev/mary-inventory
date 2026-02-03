@@ -42,7 +42,7 @@ const defaultSettings: SystemSettings = {
   businessHours: {
     start: '09:00',
     end: '18:00',
-    days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    days: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
   },
   holidays: [],
   emailNotifications: {
@@ -271,9 +271,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const products: Product[] = productsRes.data.map(p => ({
           id: p.id,
           name: p.name,
-          image: p.image,
+          image: p.image || undefined,
           quantity: p.quantity,
           price: Number(p.price),
+          purchasePrice: Number(p.purchase_price || 0),
           category: p.category,
           lowStockThreshold: p.low_stock_threshold,
           notes: p.notes,
@@ -418,6 +419,183 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       hasLoadedData.current = false;
       currentUserId.current = null;
     }
+  }, [user?.id]);
+
+  // Real-time subscriptions
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('🔄 Setting up real-time subscriptions for user:', user.id);
+
+    // Helper to map database records to app types
+    const mapProduct = (p: any): Product => ({
+      id: p.id,
+      name: p.name,
+      image: p.image || undefined,
+      quantity: p.quantity,
+      price: Number(p.price),
+      purchasePrice: Number(p.purchase_price || 0),
+      category: p.category,
+      lowStockThreshold: p.low_stock_threshold,
+      notes: p.notes,
+      barcode: p.barcode,
+      createdAt: new Date(p.created_at),
+      updatedAt: new Date(p.updated_at)
+    });
+
+    const mapCustomer = (c: any): Customer => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      phone: c.phone,
+      photo: c.photo,
+      address: c.address,
+      totalDebt: Number(c.total_debt),
+      category: c.category as any,
+      rating: c.rating,
+      preferences: c.preferences,
+      notes: c.notes,
+      lastPurchase: c.last_purchase ? new Date(c.last_purchase) : undefined,
+      totalPurchases: c.total_purchases,
+      followUpDate: c.follow_up_date ? new Date(c.follow_up_date) : undefined,
+      createdAt: new Date(c.created_at),
+      updatedAt: new Date(c.updated_at)
+    });
+
+    const mapSupplier = (s: any): Supplier => ({
+      id: s.id,
+      name: s.name,
+      email: s.email,
+      phone: s.phone,
+      address: s.address,
+      totalOwed: Number(s.total_owed),
+      rating: s.rating,
+      contractTerms: s.contract_terms,
+      paymentTerms: s.payment_terms,
+      deliverySchedule: s.delivery_schedule,
+      notes: s.notes,
+      lastOrder: s.last_order ? new Date(s.last_order) : undefined,
+      totalOrders: s.total_orders,
+      performance: {
+        onTimeDelivery: s.on_time_delivery,
+        qualityRating: s.quality_rating,
+        communicationRating: s.communication_rating
+      },
+      autoReorderEnabled: s.auto_reorder_enabled,
+      reorderThreshold: s.reorder_threshold,
+      createdAt: new Date(s.created_at),
+      updatedAt: new Date(s.updated_at)
+    });
+
+    const mapTransaction = (t: any): AccountTransaction => ({
+      id: t.id,
+      type: t.type as any,
+      customerId: t.customer_id,
+      supplierId: t.supplier_id,
+      customerName: t.customer_name,
+      supplierName: t.supplier_name,
+      products: t.products,
+      totalAmount: Number(t.total_amount),
+      paidAmount: Number(t.paid_amount),
+      remainingAmount: Number(t.remaining_amount),
+      dueDate: new Date(t.due_date),
+      lastPaymentDate: t.last_payment_date ? new Date(t.last_payment_date) : undefined,
+      status: t.status as any,
+      paymentTerms: t.payment_terms,
+      notes: t.notes,
+      invoiceNumber: t.invoice_number,
+      reference: t.reference,
+      createdDate: new Date(t.created_at)
+    });
+
+    // Subscribe to products table
+    const productsChannel = supabase
+      .channel('products-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'products', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('➕ Product inserted:', payload.new);
+          dispatch({ type: 'ADD_PRODUCT', payload: mapProduct(payload.new) });
+        })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'products', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('✏️ Product updated:', payload.new);
+          dispatch({ type: 'UPDATE_PRODUCT', payload: mapProduct(payload.new) });
+        })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'products', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('🗑️ Product deleted:', payload.old.id);
+          dispatch({ type: 'DELETE_PRODUCT', payload: payload.old.id });
+        })
+      .subscribe();
+
+    // Subscribe to customers table
+    const customersChannel = supabase
+      .channel('customers-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'customers', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('➕ Customer inserted:', payload.new);
+          dispatch({ type: 'ADD_CUSTOMER', payload: mapCustomer(payload.new) });
+        })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customers', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('✏️ Customer updated:', payload.new);
+          dispatch({ type: 'UPDATE_CUSTOMER', payload: mapCustomer(payload.new) });
+        })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'customers', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('🗑️ Customer deleted:', payload.old.id);
+          dispatch({ type: 'DELETE_CUSTOMER', payload: payload.old.id });
+        })
+      .subscribe();
+
+    // Subscribe to suppliers table
+    const suppliersChannel = supabase
+      .channel('suppliers-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'suppliers', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('➕ Supplier inserted:', payload.new);
+          dispatch({ type: 'ADD_SUPPLIER', payload: mapSupplier(payload.new) });
+        })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'suppliers', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('✏️ Supplier updated:', payload.new);
+          dispatch({ type: 'UPDATE_SUPPLIER', payload: mapSupplier(payload.new) });
+        })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'suppliers', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('🗑️ Supplier deleted:', payload.old.id);
+          dispatch({ type: 'DELETE_SUPPLIER', payload: payload.old.id });
+        })
+      .subscribe();
+
+    // Subscribe to account_transactions table
+    const transactionsChannel = supabase
+      .channel('transactions-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'account_transactions', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('➕ Transaction inserted:', payload.new);
+          dispatch({ type: 'ADD_ACCOUNT_TRANSACTION', payload: mapTransaction(payload.new) });
+        })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'account_transactions', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('✏️ Transaction updated:', payload.new);
+          dispatch({ type: 'UPDATE_ACCOUNT_TRANSACTION', payload: mapTransaction(payload.new) });
+        })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'account_transactions', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('🗑️ Transaction deleted:', payload.old.id);
+          dispatch({ type: 'DELETE_ACCOUNT_TRANSACTION', payload: payload.old.id });
+        })
+      .subscribe();
+
+    // Cleanup subscriptions on unmount or user change
+    return () => {
+      console.log('🔌 Unsubscribing from real-time channels');
+      supabase.removeChannel(productsChannel);
+      supabase.removeChannel(customersChannel);
+      supabase.removeChannel(suppliersChannel);
+      supabase.removeChannel(transactionsChannel);
+    };
   }, [user?.id]);
 
   const value = {

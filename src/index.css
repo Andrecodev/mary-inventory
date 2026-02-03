@@ -107,4 +107,81 @@
   .success-message {
     @apply bg-green-50 border-2 border-green-300 text-green-900 px-4 py-3 rounded-lg text-lg;
   }
+
+  /* Enhanced date input styling for native pickers */
+  input[type="date"] {
+    @apply cursor-pointer;
+    font-family: inherit;
+  }
+
+  /* Style the calendar picker icon in WebKit browsers */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    @apply cursor-pointer opacity-0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Firefox specific styling */
+  input[type="date"]::-moz-calendar-picker-indicator {
+    @apply cursor-pointer;
+  }
+
+  /* Remove default date input appearance for more custom styling */
+  input[type="date"].date-input-custom {
+    @apply appearance-none;
+  }
+
+  /* Standalone date input (fallback without custom component) */
+  .date-input-standalone {
+    @apply w-full px-4 py-4 text-base md:text-lg border-2 border-gray-300 rounded-xl;
+    @apply focus:ring-4 focus:ring-blue-100 focus:border-blue-500;
+    @apply bg-white min-h-[48px] md:min-h-[56px];
+    @apply transition-all duration-200;
+  }
+
+  .date-input-standalone:hover:not(:disabled) {
+    @apply border-blue-400;
+  }
+
+  .date-input-standalone:disabled {
+    @apply bg-gray-100 border-gray-200 cursor-not-allowed;
+  }
+}
+
+@layer utilities {
+  /* Toast animations */
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-out-right {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.3s ease-out;
+  }
+
+  .animate-slide-out-right {
+    animation: slide-out-right 0.3s ease-in;
+  }
 }

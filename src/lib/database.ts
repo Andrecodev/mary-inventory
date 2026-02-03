@@ -3,45 +3,116 @@ import { Product, Customer, Supplier, AccountTransaction, PaymentRecord, Purchas
 
 // Products
 export const createProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>, userId: string) => {
-  const { data, error } = await supabase
-    .from('products')
-    .insert({
-      user_id: userId,
-      name: product.name,
-      image: product.image,
-      price: product.price,
-      quantity: product.quantity,
-      category: product.category,
-      low_stock_threshold: product.lowStockThreshold,
-      notes: product.notes,
-      barcode: product.barcode
-    })
-    .select()
-    .single();
+  console.log('🔵 createProduct llamado con:', { product, userId });
+  
+  // Filter out undefined values and ensure we have all required fields
+  const insertData: Record<string, any> = {
+    user_id: userId,
+    name: product.name,
+    image: product.image || null,
+    price: product.price,
+    purchase_price: product.purchasePrice || 0,
+    quantity: product.quantity || 0,
+    category: product.category || 'other',
+    low_stock_threshold: product.lowStockThreshold || 5,
+    notes: product.notes || '',
+    barcode: product.barcode || '',
+  };
+  
+  console.log('📤 Datos a insertar:', insertData);
+  console.log('🔌 Estado de conexión Supabase:', supabase);
+  
+  try {
+    console.log('⏳ Iniciando inserción en Supabase...');
+    console.log('📡 Ejecutando INSERT en tabla products...');
 
-  if (error) throw error;
-  return data;
+    const { data, error } = await supabase
+      .from('products')
+      .insert(insertData)
+      .select();
+
+    console.log('🔍 Respuesta completa de Supabase:', { data, error, hasData: !!data, hasError: !!error });
+
+    // If error is about purchase_price column not existing, try again without it
+    if (error && error.message && error.message.includes('purchase_price')) {
+      console.warn('⚠️ Campo purchase_price no existe en la tabla, reintentando sin él...');
+      const dataWithoutPurchasePrice = { ...insertData };
+      delete dataWithoutPurchasePrice.purchase_price;
+      
+      const retryResult = await supabase
+        .from('products')
+        .insert(dataWithoutPurchasePrice)
+        .select();
+      
+      data = retryResult.data;
+      error = retryResult.error;
+      console.log('🔄 Respuesta del reintento:', { data, error });
+    }
+
+    if (error) {
+      console.error('❌ Error de Supabase:', error);
+      console.error('❌ Código de error:', error.code);
+      console.error('❌ Mensaje:', error.message);
+      console.error('❌ Detalles:', error.details);
+      console.error('❌ Hint:', error.hint);
+      throw new Error(`Error de Supabase: ${error.message} (Código: ${error.code || 'desconocido'})`);
+    }
+    
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      console.error('⚠️ No se recibió data ni error de Supabase');
+      throw new Error('No se recibió respuesta de Supabase');
+    }
+    
+    const insertedProduct = data[0];
+    console.log('✅ Producto creado exitosamente:', insertedProduct);
+    return insertedProduct;
+  } catch (err) {
+    console.error('❌ Error capturado en createProduct:', err);
+    if (err instanceof Error) {
+      console.error('❌ Mensaje de error:', err.message);
+      console.error('❌ Stack:', err.stack);
+    }
+    throw err;
+  }
 };
 
 export const updateProduct = async (product: Product) => {
-  const { data, error } = await supabase
+  const updateData: Record<string, any> = {
+    name: product.name,
+    image: product.image || null,
+    price: product.price,
+    purchase_price: product.purchasePrice || 0,
+    quantity: product.quantity || 0,
+    category: product.category || 'other',
+    low_stock_threshold: product.lowStockThreshold || 5,
+    notes: product.notes || '',
+    barcode: product.barcode || '',
+  };
+
+  let { data, error } = await supabase
     .from('products')
-    .update({
-      name: product.name,
-      image: product.image,
-      price: product.price,
-      quantity: product.quantity,
-      category: product.category,
-      low_stock_threshold: product.lowStockThreshold,
-      notes: product.notes,
-      barcode: product.barcode
-    })
+    .update(updateData)
     .eq('id', product.id)
-    .select()
-    .single();
+    .select();
+
+  // If error is about purchase_price column not existing, try again without it
+  if (error && error.message && error.message.includes('purchase_price')) {
+    console.warn('⚠️ Campo purchase_price no existe en la tabla, reintentando sin él...');
+    const dataWithoutPurchasePrice = { ...updateData };
+    delete dataWithoutPurchasePrice.purchase_price;
+    
+    const retryResult = await supabase
+      .from('products')
+      .update(dataWithoutPurchasePrice)
+      .eq('id', product.id)
+      .select();
+    
+    data = retryResult.data;
+    error = retryResult.error;
+  }
 
   if (error) throw error;
-  return data;
+  return data && Array.isArray(data) && data.length > 0 ? data[0] : data;
 };
 
 export const deleteProduct = async (id: string) => {

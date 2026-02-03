@@ -108,11 +108,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Clear localStorage session first
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
+      localStorage.removeItem(storageKey);
+      
+      // Try to sign out via Supabase (may hang, but we've already cleared local session)
+      supabase.auth.signOut().catch(() => {});
+      
+      // Force state update
+      setUser(null);
+      setSession(null);
+      
+      // Reload to clear state
+      window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
-      throw error;
+      // Force reload anyway
+      window.location.href = '/';
     }
   };
 

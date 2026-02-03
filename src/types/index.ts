@@ -1,9 +1,10 @@
 export interface Product {
   id: string;
   name: string;
-  image: string;
+  image?: string;
   quantity: number;
   price: number;
+  purchasePrice: number;
   category: string;
   lowStockThreshold: number;
   notes: string;
@@ -190,4 +191,15 @@ export interface AppState {
   isLoading: boolean;
   searchQuery: string;
   showTutorial: boolean;
+}
+
+export interface Feedback {
+  id: string;
+  user_id: string;
+  email?: string;
+  feedback_text: string;
+  category?: string;
+  status: 'pending' | 'reviewed' | 'implemented' | 'rejected';
+  created_at: Date;
+  updated_at: Date;
 }
